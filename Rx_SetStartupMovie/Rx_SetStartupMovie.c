@@ -21,7 +21,8 @@
 #include <stdlib.h> // wcstombs
 #include <wchar.h> // wchar_t, wcscmp
 #include <stdio.h> // fopen, fclose, rename
-#include <string.h> // strcpy
+#include <string.h> // strcpy, strcmp
+#include <stdbool.h> // bool
 
 /** Directory that movies are stored in */
 #define MOVIES_DIRECTORY "..\\..\\..\\UDKGame\\Movies\\"
@@ -36,6 +37,31 @@ const char movie_filename[] = MOVIES_DIRECTORY "UDKFrontEnd.udk_loading" MOVIE_F
 /** Prefix of the loading screens which we are to use */
 const char movie_prefix[] = MOVIES_DIRECTORY "LoadingScreen_";
 
+/** Name of the file which will contain the name of the most recently loaded level */
+const char last_loaded_level_filename[] = MOVIES_DIRECTORY "LastLoaded.txt";
+
+/** Name of the front end map */
+const wchar_t frontend_level_name[] = L"RenX-FrontEndMap";
+
+int read_file_to_str(FILE *file, char *str, size_t str_size)
+{
+	size_t length;
+	int chr;
+
+	if (str_size == 0)
+		return 0;
+
+	length = 0;
+	while ((chr = fgetc(file)) != EOF && --str_size != 0)
+	{
+		*str = chr;
+		++str, ++length;
+	}
+	*str = '\0';
+
+	return length;
+}
+
 __declspec(dllexport) void SetStartupMovie(wchar_t *in_leaving_level, wchar_t *in_loading_level)
 {
 	FILE *file;
@@ -49,22 +75,60 @@ __declspec(dllexport) void SetStartupMovie(wchar_t *in_leaving_level, wchar_t *i
 	if (wcscmp(in_leaving_level, in_loading_level) == 0)
 		return; // Nothing to change.
 
-	// Copy inputs to character arrays (interactions with files require this)
-	leaving_level_length = wcstombs(leaving_level, in_leaving_level, sizeof(leaving_level));
+	// Copy in_loading_level to character array (interactions with files require this)
 	loading_level_length = wcstombs(loading_level, in_loading_level, sizeof(loading_level));
-
-	// Ensure that our strings are null-terminated
-	if (leaving_level_length == sizeof(leaving_level))
-		--leaving_level_length;
-	leaving_level[leaving_level_length] = '\0';
-
 	if (loading_level_length == sizeof(loading_level))
 		--loading_level_length;
 	loading_level[loading_level_length] = '\0';
 
-	// Ensure that our strings are null-terminated
-	leaving_level[sizeof(leaving_level) / sizeof(char) - 1] = '\0';
-	loading_level[sizeof(loading_level) / sizeof(char) - 1] = '\0';
+	if (wcscmp(in_leaving_level, frontend_level_name) == 0)
+	{
+		// We're leaving the front-end map. Verify that the default loading screen isn't out of place.
+		file = fopen(movie_prefix, "rb");
+		if (file != NULL)
+		{
+			fclose(file);
+
+			// Default movie is out of place; check what the last loaded level was
+			file = fopen(last_loaded_level_filename, "rb");
+			if (file != NULL)
+			{
+				leaving_level_length = read_file_to_str(file, leaving_level, sizeof(leaving_level) / sizeof(char));
+				if (leaving_level_length == sizeof(leaving_level))
+					--leaving_level_length;
+				leaving_level[leaving_level_length] = '\0';
+				fclose(file);
+			}
+			else // Last loaded level somehow wasn't stored; just force the default one into place
+			{
+				remove(loading_level);
+				rename(movie_prefix, movie_filename);
+				return;
+			}
+
+			if (strcmp(leaving_level, loading_level) == 0)
+				return; // The loading movie we want is already in postion; leave it.
+
+			goto post_init_leaving_Level;
+		}
+	}
+	// else
+
+	// Copy in_leaving_level to character array (interactions with files require this)
+	leaving_level_length = wcstombs(leaving_level, in_leaving_level, sizeof(leaving_level));
+	if (leaving_level_length == sizeof(leaving_level))
+		--leaving_level_length;
+	leaving_level[leaving_level_length] = '\0';
+
+post_init_leaving_Level:
+
+	// Store leaving_level in case the game crashes/exits later.
+	file = fopen(last_loaded_level_filename, "wb");
+	if (file != NULL)
+	{
+		fputs(loading_level, file);
+		fclose(file);
+	}
 
 	strcpy(loading_level_movie_filename, movie_prefix);
 	strcpy(loading_level_movie_filename + sizeof(movie_prefix) / sizeof(char) - 1, loading_level);
