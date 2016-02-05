@@ -16,6 +16,7 @@
  * Written by Jessica James <jessica.aj@outlook.com>
  */
 
+/** Disables Visual Studio's annoying CRT errors (required for this file to compile) */
 #define _CRT_SECURE_NO_WARNINGS
 
 #include <stdlib.h> // wcstombs
@@ -43,6 +44,17 @@ const char last_loaded_level_filename[] = MOVIES_DIRECTORY "LastLoaded.txt";
 /** Name of the front end map */
 const wchar_t frontend_level_name[] = L"RenX-FrontEndMap";
 
+/** Constant for the word "None" */
+const wchar_t none_string_wide[] = L"None";
+
+/**
+ * @brief Reads the contents of a file into a string
+ *
+ * @param file Pointer to the FILE stream to read from
+ * @param str String to write the contents of the file stream to.
+ * @param str_size Maximum number of characters to write to 'str', including the null terminator.
+ * @return The number of characters copied to 'str'.
+ */
 int read_file_to_str(FILE *file, char *str, size_t str_size)
 {
 	size_t length;
@@ -62,6 +74,13 @@ int read_file_to_str(FILE *file, char *str, size_t str_size)
 	return length;
 }
 
+/**
+ * @brief Ensures that the correct level-specific loading movie is in position if it exists.
+ * Note: If no level-specific movie exists, this moves the default movie into position.
+ *
+ * @param in_leaving_level Wide string containing the name of the level we are leaving.
+ * @param in_loading_level Wide string containing the name of the level we are loading.
+ */
 __declspec(dllexport) void SetStartupMovie(wchar_t *in_leaving_level, wchar_t *in_loading_level)
 {
 	FILE *file;
@@ -81,7 +100,7 @@ __declspec(dllexport) void SetStartupMovie(wchar_t *in_leaving_level, wchar_t *i
 		--loading_level_length;
 	loading_level[loading_level_length] = '\0';
 
-	if (wcscmp(in_leaving_level, frontend_level_name) == 0)
+	if (wcscmp(in_leaving_level, frontend_level_name) == 0 || wcscmp(in_leaving_level, none_string_wide) == 0)
 	{
 		// We're leaving the front-end map. Verify that the default loading screen isn't out of place.
 		file = fopen(movie_prefix, "rb");
@@ -112,7 +131,7 @@ __declspec(dllexport) void SetStartupMovie(wchar_t *in_leaving_level, wchar_t *i
 			goto post_init_leaving_Level;
 		}
 	}
-	// else
+	// else // We're not leaving the front-end map
 
 	// Copy in_leaving_level to character array (interactions with files require this)
 	leaving_level_length = wcstombs(leaving_level, in_leaving_level, sizeof(leaving_level));
