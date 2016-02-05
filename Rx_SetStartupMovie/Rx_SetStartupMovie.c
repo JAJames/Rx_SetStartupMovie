@@ -23,7 +23,6 @@
 #include <wchar.h> // wchar_t, wcscmp
 #include <stdio.h> // fopen, fclose, rename
 #include <string.h> // strcpy, strcmp
-#include <stdbool.h> // bool
 
 /** Directory that movies are stored in */
 #define MOVIES_DIRECTORY "..\\..\\..\\UDKGame\\Movies\\"
