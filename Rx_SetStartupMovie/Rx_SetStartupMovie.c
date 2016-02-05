@@ -41,12 +41,6 @@ const char movie_prefix[] = MOVIES_DIRECTORY "LoadingScreen_";
 /** Name of the file which will contain the name of the most recently loaded level */
 const char last_loaded_level_filename[] = MOVIES_DIRECTORY "LastLoaded.txt";
 
-/** Name of the front end map */
-const wchar_t frontend_level_name[] = L"RenX-FrontEndMap";
-
-/** Constant for the word "None" */
-const wchar_t none_string_wide[] = L"None";
-
 /**
  * @brief Reads the contents of a file into a string
  *
@@ -100,38 +94,30 @@ __declspec(dllexport) void SetStartupMovie(wchar_t *in_leaving_level, wchar_t *i
 		--loading_level_length;
 	loading_level[loading_level_length] = '\0';
 
-	if (wcscmp(in_leaving_level, frontend_level_name) == 0 || wcscmp(in_leaving_level, none_string_wide) == 0)
+	// Prioritize the stored last loaded level over the leaving_level.
+	file = fopen(last_loaded_level_filename, "rb");
+	if (file != NULL)
 	{
-		// We're leaving the front-end map. Verify that the default loading screen isn't out of place.
-		file = fopen(movie_prefix, "rb");
-		if (file != NULL)
-		{
-			fclose(file);
+		// The last loaded level was stored; use it instead of the supplied level name.
+		leaving_level_length = read_file_to_str(file, leaving_level, sizeof(leaving_level) / sizeof(char));
+		fclose(file);
 
-			// Default movie is out of place; check what the last loaded level was
-			file = fopen(last_loaded_level_filename, "rb");
-			if (file != NULL)
-			{
-				leaving_level_length = read_file_to_str(file, leaving_level, sizeof(leaving_level) / sizeof(char));
-				if (leaving_level_length == sizeof(leaving_level))
-					--leaving_level_length;
-				leaving_level[leaving_level_length] = '\0';
-				fclose(file);
-			}
-			else // Last loaded level somehow wasn't stored; just force the default one into place
-			{
-				remove(loading_level);
-				rename(movie_prefix, movie_filename);
-				return;
-			}
+		if (strcmp(leaving_level, loading_level) == 0)
+			return; // The loading movie we want is already in postion; leave it.
 
-			if (strcmp(leaving_level, loading_level) == 0)
-				return; // The loading movie we want is already in postion; leave it.
-
-			goto post_init_leaving_Level;
-		}
+		goto post_init_leaving_Level;
 	}
-	// else // We're not leaving the front-end map
+	else
+	{
+		// Check if we have write permission for the last loaded level file.
+		file = fopen(last_loaded_level_filename, "wb");
+
+		if (file == NULL)
+			return; // We don't have write permission; quit here for safety.
+
+		// Last loaded level wasn't stored; this is a first-time run.
+		fclose(file);
+	}
 
 	// Copy in_leaving_level to character array (interactions with files require this)
 	leaving_level_length = wcstombs(leaving_level, in_leaving_level, sizeof(leaving_level));
