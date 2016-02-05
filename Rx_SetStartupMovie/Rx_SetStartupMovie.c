@@ -104,8 +104,6 @@ __declspec(dllexport) void SetStartupMovie(wchar_t *in_leaving_level, wchar_t *i
 
 		if (strcmp(leaving_level, loading_level) == 0)
 			return; // The loading movie we want is already in postion; leave it.
-
-		goto post_init_leaving_Level;
 	}
 	else
 	{
@@ -117,15 +115,13 @@ __declspec(dllexport) void SetStartupMovie(wchar_t *in_leaving_level, wchar_t *i
 
 		// Last loaded level wasn't stored; this is a first-time run.
 		fclose(file);
+
+		// Copy in_leaving_level to character array (interactions with files require this)
+		leaving_level_length = wcstombs(leaving_level, in_leaving_level, sizeof(leaving_level));
+		if (leaving_level_length == sizeof(leaving_level))
+			--leaving_level_length;
+		leaving_level[leaving_level_length] = '\0';
 	}
-
-	// Copy in_leaving_level to character array (interactions with files require this)
-	leaving_level_length = wcstombs(leaving_level, in_leaving_level, sizeof(leaving_level));
-	if (leaving_level_length == sizeof(leaving_level))
-		--leaving_level_length;
-	leaving_level[leaving_level_length] = '\0';
-
-post_init_leaving_Level:
 
 	// Store leaving_level in case the game crashes/exits later.
 	file = fopen(last_loaded_level_filename, "wb");
