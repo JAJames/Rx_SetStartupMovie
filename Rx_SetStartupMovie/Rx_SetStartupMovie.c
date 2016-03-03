@@ -145,11 +145,21 @@ __declspec(dllexport) void SetStartupMovie(wchar_t *in_leaving_level, wchar_t *i
 		{
 			fclose(file);
 
-			// A level-specific movie is currently in position; move it
 			strcpy(leaving_level_movie_filename, movie_prefix);
 			strcpy(leaving_level_movie_filename + sizeof(movie_prefix) / sizeof(char) - 1, leaving_level);
 			strcpy(leaving_level_movie_filename + sizeof(movie_prefix) / sizeof(char) - 1 + leaving_level_length, movie_file_extension);
-			rename(movie_filename, leaving_level_movie_filename);
+
+			// Check if leaving_level_movie already exists
+			file = fopen(leaving_level_movie_filename, "rb");
+			if (file != NULL)
+			{
+				fclose(file);
+
+				// Assume the loaded movie is default (as would be the case after an update/reinstall); remove old default movie
+				remove(movie_prefix);
+			}
+			else // A level-specific movie is currently in position; move it
+				rename(movie_filename, leaving_level_movie_filename);
 		}
 		else // The default movie is currently in position; move it.
 			rename(movie_filename, movie_prefix);
@@ -165,14 +175,26 @@ __declspec(dllexport) void SetStartupMovie(wchar_t *in_leaving_level, wchar_t *i
 		{
 			fclose(file);
 
-			// A level-specific movie is currently in position; move it
 			strcpy(leaving_level_movie_filename, movie_prefix);
 			strcpy(leaving_level_movie_filename + sizeof(movie_prefix) / sizeof(char) - 1, leaving_level);
 			strcpy(leaving_level_movie_filename + sizeof(movie_prefix) / sizeof(char) - 1 + leaving_level_length, movie_file_extension);
-			rename(movie_filename, leaving_level_movie_filename);
+			
+			// Check if leaving_level_movie already exists
+			file = fopen(leaving_level_movie_filename, "rb");
+			if (file != NULL)
+			{
+				fclose(file);
 
-			// Move the default movie into position
-			rename(movie_prefix, movie_filename);
+				// Assume the loaded movie is default (as would be the case after an update/reinstall); remove old default movie
+				remove(movie_prefix);
+			}
+			else // A level-specific movie is currently in position; move it
+			{
+				rename(movie_filename, leaving_level_movie_filename);
+
+				// Move the default movie into position
+				rename(movie_prefix, movie_filename);
+			}
 		}
 		// else // Default movie is already in position; nothing to do
 	}
